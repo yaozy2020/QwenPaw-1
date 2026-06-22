@@ -64,29 +64,6 @@
   gap: 12px;
 }
 
-/* ─── Mobile responsive ───────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .pageHeader {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-    padding: 12px;
-  }
-
-  .breadcrumbHeader {
-    flex-wrap: nowrap;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .extra {
-    width: 100%;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-}
-
 /* ─── Dark mode ─────────────────────────────────────────────────────────────── */
 :global(.dark-mode) {
   .pageHeader {
@@ -106,7 +83,7 @@
   }
 }
 
-/* ─── Mobile Responsive ────────────────────────────────────────────────────── */
+/* ─── Mobile responsive ───────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .pageHeader {
     flex-direction: column;
@@ -115,8 +92,14 @@
     padding: 12px;
   }
 
+  .leading {
+    width: 100%;
+    min-width: 0;
+  }
+
   .breadcrumbHeader {
-    font-size: 14px;
+    flex-wrap: nowrap;
+    gap: 4px 8px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -124,11 +107,17 @@
     width: 100%;
   }
 
+  .breadcrumbParent {
+    font-size: 14px;
+  }
+
   .breadcrumbCurrent {
     font-size: 16px;
   }
 
   .extra {
+    width: 100%;
+    justify-content: flex-start;
     flex-wrap: wrap;
     gap: 8px;
   }
