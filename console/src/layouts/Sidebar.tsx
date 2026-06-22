@@ -401,6 +401,9 @@ export default function Sidebar({ selectedKey }: SidebarProps) {
     >
       {collapsed ? (
         <nav className={styles.collapsedNav}>
+          <div className={styles.collapsedAgentSelector}>
+            <AgentSelector collapsed={collapsed} />
+          </div>
           {collapsedNavItems.map((item) => {
             const isActive =
               item.key === "core.chat"
