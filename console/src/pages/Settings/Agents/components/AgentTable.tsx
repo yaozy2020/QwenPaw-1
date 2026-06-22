@@ -74,6 +74,7 @@ export function AgentTable({
       key: "sort",
       width: 56,
       align: "center",
+      responsive: ["lg"],
       render: () => (
         <Tooltip title={t("agent.dragHandleTooltip")}>
           <span>
@@ -106,24 +107,28 @@ export function AgentTable({
       title: t("agent.id"),
       dataIndex: "id",
       key: "id",
+      responsive: ["lg"],
     },
     {
       title: t("agent.description"),
       dataIndex: "description",
       key: "description",
       ellipsis: true,
+      responsive: ["md"],
     },
     {
       title: t("agent.workspace"),
       dataIndex: "workspace_dir",
       key: "workspace_dir",
       ellipsis: true,
+      responsive: ["lg"],
     },
     {
       title: t("agent.modelColumn"),
       key: "active_model",
       width: 260,
       ellipsis: true,
+      responsive: ["sm"],
       render: (_: any, record: AgentSummary) => {
         if (!record.active_model) {
           return (
@@ -234,6 +239,7 @@ export function AgentTable({
             columns={columns}
             loading={loading}
             rowKey="id"
+            scroll={{ x: "max-content" }}
             components={{
               body: {
                 row: SortableAgentRow,

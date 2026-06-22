@@ -8,7 +8,7 @@ import { invalidateSkillCache, skillApi } from "../../../api/modules/skill";
 import type { AgentSummary } from "../../../api/types/agents";
 import { useAgentStore } from "../../../stores/agentStore";
 import { useAgents } from "./useAgents";
-import { AgentTable, AgentModal } from "./components";
+import { AgentTable, AgentCards, AgentModal } from "./components";
 import { PageHeader } from "@/components/PageHeader";
 import { reorderAgents } from "./reorder";
 import styles from "./index.module.less";
@@ -190,15 +190,26 @@ export default function AgentsPage() {
       />
 
       <Card className={styles.tableCard}>
-        <AgentTable
-          agents={agents}
-          loading={loading || reordering}
-          reordering={reordering}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onToggle={handleToggle}
-          onReorder={handleReorder}
-        />
+        <div className={styles.desktopTableOnly}>
+          <AgentTable
+            agents={agents}
+            loading={loading || reordering}
+            reordering={reordering}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onToggle={handleToggle}
+            onReorder={handleReorder}
+          />
+        </div>
+        <div className={styles.mobileCardsOnly}>
+          <AgentCards
+            agents={agents}
+            loading={loading || reordering}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onToggle={handleToggle}
+          />
+        </div>
       </Card>
 
       <AgentModal
