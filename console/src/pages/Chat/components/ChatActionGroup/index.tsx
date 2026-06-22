@@ -123,9 +123,7 @@ const ChatActionGroup: React.FC<ChatActionGroupProps> = ({
       icon: isWideMode ? <CompressOutlined /> : <ExpandAltOutlined />,
       label: (
         <div style={{ textAlign: "center" }}>
-          {isWideMode
-            ? t("chat.normalModeTooltip")
-            : t("chat.wideModeTooltip")}
+          {isWideMode ? t("chat.normalModeTooltip") : t("chat.wideModeTooltip")}
         </div>
       ),
       onClick: () => onToggleWideMode(),

@@ -737,15 +737,8 @@ export default function ModelSelector() {
             {showActiveProviderIcon && activeProviderId && (
               <ProviderIcon providerId={activeProviderId} size={16} />
             )}
-            <span
-              className={styles.triggerName}
-              ref={triggerNameRef}
-            >
-              <span
-                className={
-                  shouldMarquee ? styles.marqueeText : undefined
-                }
-              >
+            <span className={styles.triggerName} ref={triggerNameRef}>
+              <span className={shouldMarquee ? styles.marqueeText : undefined}>
                 {activeModelName}
               </span>
             </span>

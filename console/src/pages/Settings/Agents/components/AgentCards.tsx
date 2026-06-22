@@ -1,10 +1,6 @@
 import { Button, Popconfirm, Tag, Tooltip, Space } from "antd";
 import { useTranslation } from "react-i18next";
-import {
-  EditOutlined,
-  DeleteOutlined,
-  RobotOutlined,
-} from "@ant-design/icons";
+import { EditOutlined, DeleteOutlined, RobotOutlined } from "@ant-design/icons";
 import { EyeOff, Eye } from "lucide-react";
 import type { AgentSummary } from "../../../../api/types/agents";
 import { getAgentDisplayName } from "../../../../utils/agentDisplayName";
@@ -37,7 +33,9 @@ export function AgentCards({
       {agents.map((agent) => (
         <div
           key={agent.id}
-          className={`${styles.agentCardItem} ${!agent.enabled ? styles.agentCardDisabled : ""}`}
+          className={`${styles.agentCardItem} ${
+            !agent.enabled ? styles.agentCardDisabled : ""
+          }`}
         >
           {/* Header: icon + name + status */}
           <div className={styles.agentCardHeader}>
@@ -73,7 +71,9 @@ export function AgentCards({
                 <span className={styles.agentCardLabel}>
                   {t("agent.workspace")}:
                 </span>
-                <code className={`${styles.agentCardValue} ${styles.agentCardMono}`}>
+                <code
+                  className={`${styles.agentCardValue} ${styles.agentCardMono}`}
+                >
                   {agent.workspace_dir}
                 </code>
               </div>
@@ -94,7 +94,9 @@ export function AgentCards({
                   </Tooltip>
                 </Space>
               ) : (
-                <span className={`${styles.agentCardValue} ${styles.agentCardPlaceholder}`}>
+                <span
+                  className={`${styles.agentCardValue} ${styles.agentCardPlaceholder}`}
+                >
                   {t("agent.modelPlaceholder")}
                 </span>
               )}
@@ -129,9 +131,7 @@ export function AgentCards({
               <Button
                 type="text"
                 size="small"
-                icon={
-                  agent.enabled ? <EyeOff size={14} /> : <Eye size={14} />
-                }
+                icon={agent.enabled ? <EyeOff size={14} /> : <Eye size={14} />}
                 disabled={agent.id === "default"}
               />
             </Popconfirm>

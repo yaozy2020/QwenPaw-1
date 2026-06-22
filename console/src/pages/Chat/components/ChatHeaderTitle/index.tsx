@@ -33,8 +33,7 @@ const ChatHeaderTitle: React.FC = () => {
       }
       const containerWidth =
         containerRef.current?.getBoundingClientRect().width ?? 0;
-      const textWidth =
-        measureRef.current?.getBoundingClientRect().width ?? 0;
+      const textWidth = measureRef.current?.getBoundingClientRect().width ?? 0;
       // Add a few px tolerance to avoid borderline jitter.
       setShouldMarquee(textWidth > containerWidth + 2);
     };
@@ -53,7 +52,9 @@ const ChatHeaderTitle: React.FC = () => {
     key: session.id,
     label: (
       <div className={styles.menuItem}>
-        <span className={styles.menuItemName}>{session.name || "New Chat"}</span>
+        <span className={styles.menuItemName}>
+          {session.name || "New Chat"}
+        </span>
         {session.id === currentSessionId && (
           <span className={styles.menuItemActive}>✓</span>
         )}
