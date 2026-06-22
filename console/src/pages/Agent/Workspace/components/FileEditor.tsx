@@ -135,8 +135,8 @@ export const FileEditor: React.FC<FileEditorProps> = ({
                   {saving
                     ? t("workspace.saving")
                     : hasChanges
-                      ? t("workspace.unsaved")
-                      : t("workspace.saved")}
+                    ? t("workspace.unsaved")
+                    : t("workspace.saved")}
                 </span>
                 <Button
                   size="small"
