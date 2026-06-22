@@ -824,12 +824,16 @@
   bottom: 0;
   left: 0;
   right: 0;
-  display: flex;
+  display: none;
   justify-content: center;
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
   background: #fff;
+}
+
+.skillCard:hover .cardFooter {
+  display: flex;
 }
 
 .actionButton {
@@ -1155,10 +1159,115 @@
   .pageHeader {
     flex-direction: column;
     align-items: stretch;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .breadcrumbHeader {
+    font-size: 13px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .breadcrumbCurrent {
+    font-size: 15px;
+  }
+
+  .headerRight {
+    flex-direction: column;
+    gap: 8px;
   }
 
   .headerActionsLeft,
-  .headerActionsRight {
+  .headerActionsRight,
+  .batchActions {
     flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .headerActionsLeft :global(.ant-btn) {
+    font-size: 13px;
+    height: 32px;
+    padding: 0 10px;
+  }
+
+  .primaryTransferButton,
+  .primaryActionButton {
+    min-width: unset;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 12px 0;
+  }
+
+  .searchContainer {
+    max-width: unset;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .searchInput {
+    height: 36px;
+    font-size: 14px;
+  }
+
+  .tagSelect {
+    min-width: unset;
+    max-width: unset;
+    width: 100%;
+
+    :global {
+      .ant-select-selector {
+        height: 36px !important;
+      }
+    }
+  }
+
+  .toolbarRight {
+    align-self: flex-end;
+  }
+
+  .viewToggleBtn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .skillsGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .skillsList {
+    padding: 12px;
+  }
+
+  .listItemRight {
+    margin-left: 0;
+    margin-top: 8px;
+  }
+
+  .listItemHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .cardFooter {
+    display: flex !important;
+    position: static;
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .actionButton,
+  .deleteButton {
+    height: 32px;
+    font-size: 13px;
   }
 }
