@@ -72,6 +72,18 @@ export default function ModelSelector() {
     {},
   );
 
+  // Mobile viewport detection for dropdown placement
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 768px)");
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      setIsMobile(e.matches);
+    };
+    handler(media);
+    media.addEventListener("change", handler);
+    return () => media.removeEventListener("change", handler);
+  }, []);
+
   // OAuth modal state
   const [oauthModal, setOauthModal] = useState<{
     open: boolean;
@@ -702,7 +714,8 @@ export default function ModelSelector() {
           <div style={{ transform: "translateY(0)" }}>{dropdownContent}</div>
         )}
         trigger={["click"]}
-        placement="bottomLeft"
+        placement={isMobile ? "bottomCenter" : "bottomLeft"}
+        getPopupContainer={() => document.body}
       >
         <Tooltip title={t("chat.modelSelectTooltip")} mouseEnterDelay={0.5}>
           <div
