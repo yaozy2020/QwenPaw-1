@@ -58,20 +58,6 @@
   }
 }
 
-// Wrapper used in JSX only when the title overflows on mobile.
-.marquee {
-  display: inline-block;
-}
-
-@keyframes chatNameMarquee {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
-}
-
 :global(.dark-mode) {
   .chatName {
     color: rgba(255, 255, 255, 0.88);
