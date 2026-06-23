@@ -1286,6 +1286,26 @@ export default function ChatPage() {
   const { mode: sidebarMode } = useSidebarModeStore();
   const isFullMode = sidebarMode === "full";
 
+  // On mobile viewports the right-side history panel should always be
+  // available regardless of the sidebar mode setting.
+  const MOBILE_BREAKPOINT_PX = 768;
+  function isMobileViewport() {
+    return (
+      typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT_PX
+    );
+  }
+  const [isMobile, setIsMobile] = useState(isMobileViewport);
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const syncMobile = () => setIsMobile(isMobileViewport());
+    syncMobile();
+    window.addEventListener("resize", syncMobile);
+    return () => window.removeEventListener("resize", syncMobile);
+  }, []);
+  const effectiveIsFullMode = isFullMode || isMobile;
+
   // Right-side history panel state
   const [historyPanelOpen, setHistoryPanelOpen] = useState(() => {
     try {
@@ -2547,8 +2567,10 @@ export default function ChatPage() {
             <ModelSelector />
             <ChatActionGroup
               planEnabled={planEnabled}
-              onToggleHistory={isFullMode ? toggleHistoryPanel : undefined}
-              historyOpen={isFullMode ? historyPanelOpen : false}
+              onToggleHistory={
+                effectiveIsFullMode ? toggleHistoryPanel : undefined
+              }
+              historyOpen={effectiveIsFullMode ? historyPanelOpen : false}
               isWideMode={isWideMode}
               onToggleWideMode={toggleWideMode}
             />
@@ -3001,7 +3023,7 @@ export default function ChatPage() {
       {/* End of main chat area */}
 
       {/* Right-side history panel (full mode only) */}
-      {isFullMode && historyPanelOpen && (
+      {effectiveIsFullMode && historyPanelOpen && (
         <>
           <div
             className={styles.historyPanelMask}
