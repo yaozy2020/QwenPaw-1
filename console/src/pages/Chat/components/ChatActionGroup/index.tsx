@@ -33,10 +33,16 @@ const PlanIcon = () => (
   </svg>
 );
 
-// Below this *available header width*, collapse secondary actions (Plan,
-// History, WideMode) into a "more" dropdown so the essential New/Search
-// buttons stay visible on mobile.
-const COMPACT_BREAKPOINT_PX = 700;
+// On mobile viewports, collapse secondary actions (Plan, History, WideMode)
+// into a "more" dropdown so the essential New/Search buttons stay visible.
+// On desktop, keep Plan inline as requested.
+const MOBILE_BREAKPOINT_PX = 768;
+
+function isMobileViewport() {
+  return (
+    typeof window !== "undefined" && window.innerWidth <= MOBILE_BREAKPOINT_PX
+  );
+}
 
 interface ChatActionGroupProps {
   planEnabled?: boolean;
@@ -61,36 +67,19 @@ const ChatActionGroup: React.FC<ChatActionGroupProps> = ({
   const [planOpen, setPlanOpen] = useState(false);
   const createNewSession = useCreateNewSession();
 
-  // Detect compact mode by observing the parent header width.
-  // Falls back to window inner width on environments without ResizeObserver.
+  // Compact mode follows the viewport: collapse secondary actions only on
+  // mobile. This keeps Plan visible on desktop while saving space on phones.
   const groupRef = useRef<HTMLDivElement | null>(null);
-  const [isCompact, setIsCompact] = useState(false);
+  const [isCompact, setIsCompact] = useState(isMobileViewport);
 
   useEffect(() => {
-    const computeCompact = () => {
-      const headerEl = groupRef.current?.parentElement ?? null;
-      const headerWidth =
-        headerEl?.getBoundingClientRect().width ?? window.innerWidth;
-      setIsCompact(headerWidth < COMPACT_BREAKPOINT_PX);
-    };
-
-    computeCompact();
-
-    let observer: ResizeObserver | null = null;
-    const headerEl = groupRef.current?.parentElement ?? null;
-    if (typeof ResizeObserver !== "undefined" && headerEl) {
-      observer = new ResizeObserver(() => computeCompact());
-      observer.observe(headerEl);
-    } else if (typeof window !== "undefined") {
-      window.addEventListener("resize", computeCompact);
+    if (typeof window === "undefined") {
+      return;
     }
-
-    return () => {
-      observer?.disconnect();
-      if (typeof window !== "undefined") {
-        window.removeEventListener("resize", computeCompact);
-      }
-    };
+    const syncCompact = () => setIsCompact(isMobileViewport());
+    syncCompact();
+    window.addEventListener("resize", syncCompact);
+    return () => window.removeEventListener("resize", syncCompact);
   }, []);
 
   // Build "more" dropdown items for compact mode: Plan, History, WideMode.
