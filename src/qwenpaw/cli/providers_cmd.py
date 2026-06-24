@@ -14,6 +14,7 @@ from agentscope_runtime.engine.schemas.exception import (
 
 from ..providers.provider import ModelInfo, Provider, ProviderInfo
 from ..providers.provider_manager import ProviderManager
+from ..config.config import ModelSlotConfig
 from .utils import prompt_choice
 
 
@@ -816,3 +817,151 @@ def remove_local_cmd(model_id: str, yes: bool) -> None:
         click.echo(click.style(f"Error: {exc}", fg="red"))
         raise SystemExit(1) from exc
     click.echo(f"Done! Model '{model_id}' deleted.")
+
+
+# ---------------------------------------------------------------------------
+# Fallback model management commands
+# ---------------------------------------------------------------------------
+
+
+@models_group.group("fallback")
+def fallback_group() -> None:
+    """Manage the global fallback model chain."""
+
+
+@fallback_group.command("list")
+def fallback_list_cmd() -> None:
+    """Show the current global fallback model chain."""
+    manager = _manager()
+    chain = manager.get_fallback_models()
+    if not chain:
+        click.echo("No fallback models configured.")
+        return
+    click.echo("\n=== Fallback Models ===")
+    for idx, slot in enumerate(chain, start=1):
+        click.echo(f"  {idx}. {slot.provider_id} / {slot.model}")
+    click.echo()
+
+
+@fallback_group.command("set")
+@click.argument("pairs", nargs=-1, required=True)
+def fallback_set_cmd(pairs: tuple[str, ...]) -> None:
+    """Overwrite the global fallback model chain.
+
+    \b
+    Arguments are provider_id/model pairs:
+
+    \b
+      qwenpaw models fallback set openai gpt-4o anthropic claude-3
+    """
+    if len(pairs) % 2 != 0:
+        click.echo(
+            click.style(
+                "Error: provider_id and model must be provided in pairs.",
+                fg="red",
+            ),
+        )
+        raise SystemExit(1)
+    manager = _manager()
+    new_chain: list[ModelSlotConfig] = []
+    for i in range(0, len(pairs), 2):
+        provider_id = pairs[i]
+        model = pairs[i + 1]
+        if manager.get_provider(provider_id) is None:
+            click.echo(
+                click.style(
+                    f"Error: provider '{provider_id}' not found.",
+                    fg="red",
+                ),
+            )
+            raise SystemExit(1)
+        new_chain.append(ModelSlotConfig(provider_id=provider_id, model=model))
+    manager.save_fallback_models(new_chain)
+    click.echo(f"✓ Fallback chain set ({len(new_chain)} model(s)).")
+
+
+@fallback_group.command("add")
+@click.argument("provider_id")
+@click.argument("model")
+def fallback_add_cmd(provider_id: str, model: str) -> None:
+    """Append a model to the end of the global fallback chain."""
+    manager = _manager()
+    if manager.get_provider(provider_id) is None:
+        click.echo(
+            click.style(
+                f"Error: provider '{provider_id}' not found.",
+                fg="red",
+            ),
+        )
+        raise SystemExit(1)
+    chain = manager.get_fallback_models()
+    chain.append(ModelSlotConfig(provider_id=provider_id, model=model))
+    manager.save_fallback_models(chain)
+    click.echo(f"✓ Added fallback: {provider_id} / {model}")
+
+
+@fallback_group.command("remove")
+@click.argument("provider_id")
+@click.argument("model")
+def fallback_remove_cmd(provider_id: str, model: str) -> None:
+    """Remove a model from the global fallback chain by exact match."""
+    manager = _manager()
+    chain = manager.get_fallback_models()
+    original_len = len(chain)
+    chain = [
+        slot
+        for slot in chain
+        if not (slot.provider_id == provider_id and slot.model == model)
+    ]
+    if len(chain) == original_len:
+        click.echo(
+            click.style(
+                f"Error: fallback model '{provider_id} / {model}' not found in chain.",
+                fg="red",
+            ),
+        )
+        raise SystemExit(1)
+    manager.save_fallback_models(chain)
+    click.echo(f"✓ Removed fallback: {provider_id} / {model}")
+
+
+@fallback_group.command("clear")
+def fallback_clear_cmd() -> None:
+    """Clear the global fallback model chain."""
+    manager = _manager()
+    manager.save_fallback_models([])
+    click.echo("✓ Fallback chain cleared.")
+
+
+if __name__ == "__main__":
+    # Self-check: verify fallback set/list/clear flow
+    from click.testing import CliRunner
+
+    runner = CliRunner()
+
+    # Save current state to restore after tests
+    _mgr = _manager()
+    _original_chain = _mgr.get_fallback_models()
+
+    try:
+        # 1. fallback set → fallback list → verify output
+        result = runner.invoke(
+            models_group, ["fallback", "set", "openai", "gpt-4o", "anthropic", "claude-3"]
+        )
+        assert result.exit_code == 0, f"set failed: {result.output}"
+        result = runner.invoke(models_group, ["fallback", "list"])
+        assert result.exit_code == 0, f"list failed: {result.output}"
+        assert "1. openai / gpt-4o" in result.output
+        assert "2. anthropic / claude-3" in result.output
+
+        # 2. fallback clear → fallback list → verify empty
+        result = runner.invoke(models_group, ["fallback", "clear"])
+        assert result.exit_code == 0, f"clear failed: {result.output}"
+        result = runner.invoke(models_group, ["fallback", "list"])
+        assert result.exit_code == 0, f"list after clear failed: {result.output}"
+        assert "No fallback models configured." in result.output
+
+        print("Self-check passed.")
+    finally:
+        # Restore original state
+        _mgr.save_fallback_models(_original_chain)

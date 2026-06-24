@@ -595,3 +595,57 @@ async def test_provider_group_in_get_info(isolated_secret_dir) -> None:
     assert info.provider_group == "aliyun"
     assert info.provider_group_name == "Aliyun"
     assert info.provider_variant == "dashscope"
+
+
+async def test_save_and_load_fallback_models(isolated_secret_dir) -> None:
+    """save_fallback_models / load_fallback_models should round-trip."""
+    manager = ProviderManager()
+
+    models = [
+        ModelSlotConfig(provider_id="openai", model="gpt-4o"),
+        ModelSlotConfig(provider_id="volcengine-cn", model="doubao-pro"),
+    ]
+    manager.save_fallback_models(models)
+
+    assert manager.get_fallback_models() == models
+
+    reloaded = ProviderManager()
+    assert reloaded.get_fallback_models() == models
+
+
+async def test_fallback_models_default_empty(isolated_secret_dir) -> None:
+    """ProviderManager should default to empty fallback_models."""
+    manager = ProviderManager()
+    assert manager.get_fallback_models() == []
+
+
+async def test_fallback_models_backward_compat_missing_file(
+    isolated_secret_dir,
+) -> None:
+    """Missing fallback_models.json should not break initialization."""
+    manager = ProviderManager()
+    assert manager.get_fallback_models() == []
+
+
+async def test_load_fallback_models_ignores_invalid_file(
+    isolated_secret_dir,
+) -> None:
+    """load_fallback_models should return [] for invalid file content."""
+    fallback_path = isolated_secret_dir / "providers" / "fallback_models.json"
+    fallback_path.parent.mkdir(parents=True, exist_ok=True)
+    fallback_path.write_text("not-a-list", encoding="utf-8")
+
+    manager = ProviderManager()
+    assert manager.get_fallback_models() == []
+
+
+async def test_fallback_models_clear_on_remove(isolated_secret_dir) -> None:
+    """Saving empty list should clear persisted fallback_models."""
+    manager = ProviderManager()
+    manager.save_fallback_models(
+        [ModelSlotConfig(provider_id="openai", model="gpt-4o")]
+    )
+    manager.save_fallback_models([])
+
+    reloaded = ProviderManager()
+    assert reloaded.get_fallback_models() == []

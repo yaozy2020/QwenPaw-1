@@ -1247,6 +1247,7 @@ class ProviderManager:  # pylint: disable=too-many-public-methods
         self.custom_providers: Dict[str, Provider] = {}
         self.plugin_providers: Dict[str, Dict] = {}  # Plugin providers
         self.active_model: ModelSlotConfig | None = None
+        self.fallback_models: list[ModelSlotConfig] = []
         self.root_path = SECRET_DIR / "providers"
         self.builtin_path = self.root_path / "builtin"
         self.custom_path = self.root_path / "custom"
@@ -1904,6 +1905,54 @@ class ProviderManager:  # pylint: disable=too-many-public-methods
         except OSError:
             pass
 
+    def get_fallback_models(self) -> list[ModelSlotConfig]:
+        """Return the global fallback model chain.
+
+        Returns an empty list if no fallback models are configured.
+        """
+        return list(self.fallback_models)
+
+    def save_fallback_models(self, models: list[ModelSlotConfig]) -> None:
+        """Persist the global fallback model chain to disk.
+
+        Args:
+            models: Ordered list of fallback model slots to persist.
+        """
+        self.fallback_models = list(models)
+        fallback_path = self.root_path / "fallback_models.json"
+        with open(fallback_path, "w", encoding="utf-8") as f:
+            json.dump(
+                [m.model_dump() for m in models],
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
+        try:
+            os.chmod(fallback_path, 0o600)
+        except OSError:
+            pass
+
+    def load_fallback_models(self) -> list[ModelSlotConfig]:
+        """Load the global fallback model chain from disk.
+
+        Returns an empty list if the file does not exist or is invalid.
+        """
+        fallback_path = self.root_path / "fallback_models.json"
+        if not fallback_path.exists():
+            return []
+        try:
+            with open(fallback_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if not isinstance(data, list):
+                    return []
+                return [
+                    ModelSlotConfig.model_validate(item)
+                    for item in data
+                    if isinstance(item, dict)
+                ]
+        except Exception:
+            return []
+
     def clear_active_model(self, provider_id: str | None = None) -> bool:
         """Clear the active provider/model configuration.
 
@@ -2127,6 +2176,9 @@ class ProviderManager:  # pylint: disable=too-many-public-methods
         active_model = self.load_active_model()
         if active_model:
             self.active_model = active_model
+
+        # Load fallback models config
+        self.fallback_models = self.load_fallback_models()
 
         # Migrate copaw-local to qwenpaw-local for backwards compatibility
         self._migrate_copaw_config()
