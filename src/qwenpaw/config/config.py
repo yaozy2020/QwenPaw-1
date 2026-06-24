@@ -53,6 +53,7 @@ class ActiveModelsInfo(BaseModel):
     """Active models information for provider manager."""
 
     active_llm: ModelSlotConfig | None
+    fallback_models: list[ModelSlotConfig] = Field(default_factory=list)
 
 
 class ACPAgentConfig(BaseModel):
@@ -1149,6 +1150,11 @@ class AgentProfileConfig(BaseModel):
     active_model: Optional["ModelSlotConfig"] = Field(
         default=None,
         description="Active model for this agent (provider_id + model)",
+    )
+    fallback_models: list[ModelSlotConfig] = Field(
+        default_factory=list,
+        description="Fallback models for this agent (provider_id + model), "
+                    "empty list inherits global fallback_models",
     )
     language: str = Field(
         default="zh",
@@ -2337,3 +2343,88 @@ def get_model_max_input_length(
         agent_config.active_model,
     )
     return 128 * 1024
+
+
+if __name__ == "__main__":
+    import json
+
+    # Self-check: schema round-trip for ActiveModelsInfo
+    info = ActiveModelsInfo(
+        active_llm=ModelSlotConfig(provider_id="openai", model="gpt-4o"),
+        fallback_models=[
+            ModelSlotConfig(provider_id="volcengine", model="doubao-pro"),
+            ModelSlotConfig(provider_id="openai", model="gpt-4o-mini"),
+        ],
+    )
+    data = info.model_dump()
+    restored = ActiveModelsInfo.model_validate(data)
+    assert restored.fallback_models[0].provider_id == "volcengine"
+    assert restored.fallback_models[1].model == "gpt-4o-mini"
+    assert len(restored.fallback_models) == 2
+    print("PASS: ActiveModelsInfo fallback_models round-trip")
+
+    # Self-check: backward compatibility for ActiveModelsInfo
+    old_global = {"active_llm": {"provider_id": "openai", "model": "gpt-4o"}}
+    restored_info = ActiveModelsInfo.model_validate(old_global)
+    assert restored_info.fallback_models == []
+    print("PASS: ActiveModelsInfo backward compatibility")
+
+    # Self-check: schema round-trip for AgentProfileConfig
+    agent = AgentProfileConfig(
+        id="test-agent",
+        name="Test",
+        fallback_models=[
+            ModelSlotConfig(provider_id="openai", model="gpt-4o"),
+        ],
+    )
+    data = agent.model_dump()
+    restored = AgentProfileConfig.model_validate(data)
+    assert restored.fallback_models[0].model == "gpt-4o"
+    print("PASS: AgentProfileConfig fallback_models round-trip")
+
+    # Self-check: backward compatibility for AgentProfileConfig
+    old_agent = {
+        "id": "old-agent",
+        "name": "Old",
+        "active_model": {"provider_id": "openai", "model": "gpt-4o"},
+    }
+    restored = AgentProfileConfig.model_validate(old_agent)
+    assert restored.fallback_models == []
+    print("PASS: AgentProfileConfig backward compatibility")
+
+    # Self-check: JSON persistence round-trip for ProviderManager
+    fallback_path = Path("/tmp/qwenpaw_fallback_models_test.json")
+    models = [
+        ModelSlotConfig(provider_id="openai", model="gpt-4o"),
+        ModelSlotConfig(provider_id="volcengine", model="doubao-pro"),
+    ]
+    with open(fallback_path, "w", encoding="utf-8") as f:
+        json.dump([m.model_dump() for m in models], f)
+    with open(fallback_path, "r", encoding="utf-8") as f:
+        loaded = [
+            ModelSlotConfig.model_validate(item) for item in json.load(f)
+        ]
+    assert len(loaded) == 2
+    assert loaded[1].provider_id == "volcengine"
+    print("PASS: ProviderManager fallback_models file round-trip")
+
+    # Self-check: empty file / invalid file returns empty list
+    with open(fallback_path, "w", encoding="utf-8") as f:
+        json.dump("not-a-list", f)
+    with open(fallback_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        result = (
+            [ModelSlotConfig.model_validate(item) for item in data]
+            if isinstance(data, list)
+            else []
+        )
+    assert result == []
+    print("PASS: ProviderManager fallback_models invalid file handling")
+
+    # Cleanup
+    try:
+        fallback_path.unlink()
+    except OSError:
+        pass
+
+    print("\nAll self-checks passed.")

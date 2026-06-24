@@ -43,6 +43,7 @@ from ..providers.retry_chat_model import (
     RetryConfig,
     RateLimitConfig,
 )
+from ..providers.fallback_chat_model import FallbackChatModel
 from ..token_usage import TokenRecordingModelWrapper
 
 
@@ -1040,6 +1041,7 @@ def create_model_and_formatter(
     model_slot = None
     retry_config = None
     rate_limit_config = None
+    agent_config = None
     if agent_id:
         try:
             agent_config = load_agent_config(agent_id)
@@ -1091,11 +1093,62 @@ def create_model_and_formatter(
 
     # Wrap with retry logic for transient LLM API errors
     wrapped_model = TokenRecordingModelWrapper(provider_id, model)
-    wrapped_model = RetryChatModel(
+    main_model = RetryChatModel(
         wrapped_model,
         retry_config=retry_config,
         rate_limit_config=rate_limit_config,
     )
+
+    # Resolve fallback model slots: agent-level first, then global
+    fallback_slots = []
+    if agent_config is not None:
+        fallback_slots = list(agent_config.fallback_models)
+    if not fallback_slots:
+        try:
+            fallback_slots = (
+                ProviderManager.get_instance().get_fallback_models()
+            )
+        except Exception:
+            pass
+
+    if fallback_slots:
+        chain: list[ChatModelBase] = [main_model]
+        manager = ProviderManager.get_instance()
+        for slot in fallback_slots:
+            if not slot.provider_id or not slot.model:
+                logger.warning(
+                    "Skipping empty fallback slot: provider_id='%s', model='%s'",
+                    slot.provider_id,
+                    slot.model,
+                )
+                continue
+            provider = manager.get_provider(slot.provider_id)
+            if provider is None:
+                logger.warning(
+                    "Fallback provider '%s' not found, skipping.",
+                    slot.provider_id,
+                )
+                continue
+            try:
+                fb_raw = provider.get_chat_model_instance(slot.model)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to create fallback model '%s/%s': %s. Skipping.",
+                    slot.provider_id,
+                    slot.model,
+                    exc,
+                )
+                continue
+            fb_wrapped = TokenRecordingModelWrapper(slot.provider_id, fb_raw)
+            fb_model = RetryChatModel(fb_wrapped)
+            chain.append(fb_model)
+
+        if len(chain) > 1:
+            wrapped_model = FallbackChatModel(chain, formatter=formatter)
+        else:
+            wrapped_model = main_model
+    else:
+        wrapped_model = main_model
 
     return wrapped_model, formatter
 
@@ -1130,3 +1183,70 @@ def _create_formatter_instance(
 __all__ = [
     "create_model_and_formatter",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Self-check
+# ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    import asyncio
+    from unittest.mock import patch, MagicMock
+
+    def _self_check():
+        """Verify that create_model_and_formatter wires FallbackChatModel
+        when fallback models are configured."""
+
+        from agentscope.model import ChatModelBase
+
+        class _MockResponse:
+            text = "ok"
+            usage = None
+
+        class _MockChatModel(ChatModelBase):
+            def __init__(self, model_name="mock-model"):
+                super().__init__(model_name=model_name, stream=False)
+                self._provider_id = "mock-provider"
+
+            async def __call__(self, *args, **kwargs):
+                return _MockResponse()
+
+        main_model = _MockChatModel("main-model")
+
+        class _MockProvider:
+            def get_chat_model_instance(self, model_id):
+                return _MockChatModel(model_id)
+
+        mock_manager = MagicMock()
+        mock_manager.get_active_chat_model.return_value = main_model
+        mock_manager.get_fallback_models.return_value = [
+            MagicMock(provider_id="fallback1", model="fb-model-1"),
+            MagicMock(provider_id="fallback2", model="fb-model-2"),
+        ]
+        mock_manager.get_provider.return_value = _MockProvider()
+
+        with patch(
+            "qwenpaw.agents.model_factory.ProviderManager"
+        ) as MockPM:
+            MockPM.get_instance.return_value = mock_manager
+            MockPM.get_active_chat_model.return_value = main_model
+
+            with patch(
+                "qwenpaw.app.agent_context.get_current_agent_id",
+                return_value=None,
+            ):
+                from qwenpaw.agents.model_factory import (
+                    create_model_and_formatter,
+                )
+                model, formatter = create_model_and_formatter()
+
+        from qwenpaw.providers.fallback_chat_model import FallbackChatModel
+
+        assert isinstance(
+            model, FallbackChatModel
+        ), f"Expected FallbackChatModel, got {type(model)}"
+        assert len(model.models) == 3, (
+            f"Expected 3 models (1 main + 2 fallbacks), got {len(model.models)}"
+        )
+        print("PASS: create_model_and_formatter returns FallbackChatModel with 2 fallback slots")
+
+    _self_check()
