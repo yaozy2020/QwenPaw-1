@@ -1157,6 +1157,25 @@
 /* ─── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   /* Note: PageHeader component has its own mobile styles from #5362 */
+  .headerRight {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .headerActionsLeft,
+  .headerActionsRight,
+  .batchActions {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .primaryTransferButton,
+  .primaryActionButton {
+    min-width: unset;
+    flex: 1;
+  }
+
   .toolbar {
     flex-direction: column;
     align-items: stretch;
