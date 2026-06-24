@@ -470,3 +470,126 @@
     border-top-color: rgba(245, 160, 90, 0.12);
   }
 }
+
+// ─── Collapsed popover list ───────────────────────────────────────────────────
+
+.agentSelectorPopover {
+  :global {
+    .qwenpaw-popover-inner {
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      padding: 0;
+    }
+
+    .qwenpaw-popover-title {
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(0, 0, 0, 0.75);
+      border-bottom: 1px solid rgba(26, 23, 22, 0.06);
+      min-width: 160px;
+    }
+
+    .qwenpaw-popover-inner-content {
+      padding: 4px;
+    }
+  }
+}
+
+.collapsedAgentListTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collapsedAgentList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 168px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.collapsedAgentItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.75);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: rgba(240, 126, 38, 0.08);
+    color: rgba(0, 0, 0, 0.88);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.collapsedAgentItemActive {
+  background: rgba(240, 126, 38, 0.1);
+  color: #f07e26;
+  font-weight: 600;
+}
+
+.collapsedAgentItemDisabled {
+  color: rgba(0, 0, 0, 0.35);
+}
+
+.collapsedAgentItemName {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectedIcon {
+  color: #f07e26;
+  flex-shrink: 0;
+}
+
+// Dark mode overrides for collapsed popover
+:global(.dark-mode) {
+  .agentSelectorPopover {
+    :global {
+      .qwenpaw-popover-inner {
+        background: #1e1e1e;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      }
+
+      .qwenpaw-popover-title {
+        color: rgba(255, 255, 255, 0.9);
+        border-bottom-color: rgba(255, 255, 255, 0.08);
+      }
+    }
+  }
+
+  .collapsedAgentItem {
+    color: rgba(255, 255, 255, 0.75);
+
+    &:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.95);
+    }
+  }
+
+  .collapsedAgentItemActive {
+    background: rgba(255, 127, 22, 0.15);
+    color: #ff7f16;
+  }
+
+  .collapsedAgentItemDisabled {
+    color: rgba(255, 255, 255, 0.35);
+  }
+}

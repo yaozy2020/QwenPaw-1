@@ -1,4 +1,4 @@
-import { Select, Tag, Tooltip } from "antd";
+import { Select, Tag, Tooltip, Popover } from "antd";
 import { useEffect, useState } from "react";
 import { Bot, CheckCircle, EyeOff, ChevronRight } from "lucide-react";
 import { SparkDownLine, SparkUpLine } from "@agentscope-ai/icons";
@@ -83,22 +83,66 @@ export default function AgentSelector({
 
   const currentAgentInfo = agents?.find((a) => a.id === selectedAgent);
 
-  // Collapsed: show just the Bot icon with Tooltip
+  // Collapsed: show the Bot icon and open a switcher popover on click
   if (collapsed) {
     return (
-      <Tooltip
-        title={
-          currentAgentInfo
-            ? getAgentDisplayName(currentAgentInfo, t)
-            : selectedAgent
+      <Popover
+        placement="rightTop"
+        trigger="click"
+        content={
+          <div className={styles.collapsedAgentList}>
+            {agents?.map((agent) => {
+              const isSelected = agent.id === selectedAgent;
+              return (
+                <button
+                  key={agent.id}
+                  className={`${styles.collapsedAgentItem} ${
+                    isSelected ? styles.collapsedAgentItemActive : ""
+                  } ${!agent.enabled ? styles.collapsedAgentItemDisabled : ""}`}
+                  onClick={() => {
+                    if (!agent.enabled) {
+                      message.warning(t("agent.cannotSwitchToDisabled"));
+                      return;
+                    }
+                    handleChange(agent.id);
+                  }}
+                  disabled={!agent.enabled}
+                  title={
+                    !agent.enabled
+                      ? t("agent.cannotSwitchToDisabled")
+                      : getAgentDisplayName(agent, t)
+                  }
+                >
+                  <Bot size={16} strokeWidth={2} />
+                  <span className={styles.collapsedAgentItemName}>
+                    {getAgentDisplayName(agent, t)}
+                  </span>
+                  {isSelected && (
+                    <CheckCircle size={14} className={styles.selectedIcon} />
+                  )}
+                  {!agent.enabled && <EyeOff size={12} />}
+                </button>
+              );
+            })}
+          </div>
         }
-        placement="right"
-        overlayInnerStyle={{ background: "rgba(0,0,0,0.75)", color: "#fff" }}
+        overlayClassName={styles.agentSelectorPopover}
+        overlayInnerStyle={{ padding: 0 }}
       >
-        <div className={styles.agentSelectorCollapsed}>
-          <Bot size={18} strokeWidth={2} />
-        </div>
-      </Tooltip>
+        <Tooltip
+          title={
+            currentAgentInfo
+              ? getAgentDisplayName(currentAgentInfo, t)
+              : selectedAgent
+          }
+          placement="right"
+          overlayInnerStyle={{ background: "rgba(0,0,0,0.75)", color: "#fff" }}
+        >
+          <div className={styles.agentSelectorCollapsed}>
+            <Bot size={18} strokeWidth={2} />
+          </div>
+        </Tooltip>
+      </Popover>
     );
   }
 
