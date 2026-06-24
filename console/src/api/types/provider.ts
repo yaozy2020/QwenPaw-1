@@ -75,6 +75,12 @@ export interface ModelSlotConfig {
 
 export interface ActiveModelsInfo {
   active_llm?: ModelSlotConfig;
+  fallback_models?: ModelSlotConfig[];
+}
+
+export interface FallbackModelsResponse {
+  fallback_models: ModelSlotConfig[];
+  source: 'agent' | 'global' | 'none';
 }
 
 export type ActiveModelScope = "effective" | "global" | "agent";

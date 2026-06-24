@@ -96,6 +96,23 @@ class ModelSlotRequest(BaseModel):
     )
 
 
+class FallbackModelsRequest(BaseModel):
+    """Request model for updating fallback model chain."""
+
+    scope: ActiveModelWriteScope = Field(
+        ...,
+        description="Whether to update the global fallback chain or a specific agent",
+    )
+    agent_id: Optional[str] = Field(
+        default=None,
+        description="Target agent ID when scope is 'agent'",
+    )
+    fallback_models: list[ModelSlotConfig] = Field(
+        default_factory=list,
+        description="Ordered list of fallback model slots",
+    )
+
+
 class CreateCustomProviderRequest(BaseModel):
     id: str = Field(...)
     name: str = Field(...)
@@ -737,6 +754,122 @@ async def set_active_model(
 
 
 # =============================================================================
+# Fallback model endpoints
+# =============================================================================
+
+
+@router.get(
+    "/fallback",
+    response_model=ActiveModelsInfo,
+    summary="Get fallback models",
+)
+async def get_fallback_models(
+    request: Request,
+    manager: ProviderManager = Depends(get_provider_manager),
+    scope: ActiveModelReadScope = Query(default="global"),
+    agent_id: Optional[str] = Query(default=None),
+) -> ActiveModelsInfo:
+    """Get fallback models by scope.
+
+    - global: global fallback chain only
+    - agent: a specific agent's fallback chain only
+    - effective: same as agent, auto-infer agent_id from request
+    """
+    if scope == "global":
+        return ActiveModelsInfo(
+            active_llm=manager.get_active_model(),
+            fallback_models=manager.get_fallback_models(),
+        )
+
+    if scope == "agent":
+        if not agent_id:
+            raise HTTPException(
+                status_code=400,
+                detail="agent_id is required when scope is 'agent'",
+            )
+        workspace = await get_agent_for_request(request, agent_id=agent_id)
+        agent_config = load_agent_config(workspace.agent_id)
+        return ActiveModelsInfo(
+            active_llm=agent_config.active_model,
+            fallback_models=agent_config.fallback_models,
+        )
+
+    # effective scope: infer agent_id from request, then same as agent
+    target_agent_id = agent_id
+    if target_agent_id is None:
+        workspace = await get_agent_for_request(request)
+        target_agent_id = workspace.agent_id
+
+    workspace = await get_agent_for_request(request, agent_id=target_agent_id)
+    agent_config = load_agent_config(workspace.agent_id)
+    return ActiveModelsInfo(
+        active_llm=agent_config.active_model,
+        fallback_models=agent_config.fallback_models,
+    )
+
+
+@router.put(
+    "/fallback",
+    response_model=ActiveModelsInfo,
+    summary="Set fallback models",
+)
+async def set_fallback_models(
+    request: Request,
+    manager: ProviderManager = Depends(get_provider_manager),
+    body: FallbackModelsRequest = Body(...),
+) -> ActiveModelsInfo:
+    """Set fallback models by scope."""
+    if body.scope == "global":
+        for slot in body.fallback_models:
+            _validate_model_slot(manager, slot.provider_id, slot.model)
+        manager.save_fallback_models(body.fallback_models)
+        return ActiveModelsInfo(
+            active_llm=manager.get_active_model(),
+            fallback_models=manager.get_fallback_models(),
+        )
+
+    if not body.agent_id:
+        raise HTTPException(
+            status_code=400,
+            detail="agent_id is required when scope is 'agent'",
+        )
+
+    for slot in body.fallback_models:
+        _validate_model_slot(manager, slot.provider_id, slot.model)
+
+    try:
+        workspace = await get_agent_for_request(
+            request,
+            agent_id=body.agent_id,
+        )
+        agent_config = load_agent_config(workspace.agent_id)
+        agent_config.fallback_models = body.fallback_models
+        save_agent_config(workspace.agent_id, agent_config)
+        schedule_agent_reload(request, workspace.agent_id)
+    except (
+        HTTPException,
+        OSError,
+        ValueError,
+        TypeError,
+        AppBaseException,
+    ) as exc:
+        logger.warning(
+            "Failed to save fallback models to agent config: %s",
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to save fallback models to agent config",
+        ) from exc
+
+    return ActiveModelsInfo(
+        active_llm=agent_config.active_model,
+        fallback_models=agent_config.fallback_models,
+    )
+
+
+# =============================================================================
 # OpenRouter-specific endpoints for model discovery with filtering
 # =============================================================================
 
@@ -967,3 +1100,118 @@ async def filter_openrouter_models(
             status_code=500,
             detail=f"Failed to filter models: {str(exc)}",
         ) from exc
+
+
+if __name__ == "__main__":
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from qwenpaw.config.config import ModelSlotConfig, AgentProfileConfig
+    from qwenpaw.app.routers.providers import (
+        get_fallback_models,
+        set_fallback_models,
+        FallbackModelsRequest,
+    )
+
+
+    async def main() -> None:
+        manager = MagicMock()
+        manager.get_active_model.return_value = ModelSlotConfig(
+            provider_id="openai",
+            model="gpt-4o",
+        )
+        manager.save_fallback_models.return_value = None
+        manager.get_fallback_models.return_value = [
+            ModelSlotConfig(provider_id="openai", model="gpt-4o"),
+            ModelSlotConfig(provider_id="openai", model="gpt-4o-mini"),
+        ]
+
+        request = MagicMock()
+        request.app.state.provider_manager = manager
+
+        # 1. PUT global fallback -> GET global -> verify consistent
+        put_body = FallbackModelsRequest(
+            scope="global",
+            fallback_models=[
+                ModelSlotConfig(provider_id="openai", model="gpt-4o"),
+                ModelSlotConfig(provider_id="openai", model="gpt-4o-mini"),
+            ],
+        )
+        put_result = await set_fallback_models(request, manager, put_body)
+        get_result = await get_fallback_models(request, manager, scope="global")
+
+        assert put_result.fallback_models == get_result.fallback_models
+        assert len(put_result.fallback_models) == 2
+
+        # 2. PUT agent fallback -> GET agent -> verify consistent
+        mock_workspace = MagicMock()
+        mock_workspace.agent_id = "test-agent"
+
+        mock_agent_config = AgentProfileConfig(
+            id="test-agent",
+            name="Test Agent",
+            fallback_models=[
+                ModelSlotConfig(provider_id="openai", model="gpt-4o"),
+            ],
+        )
+
+        with patch(
+            "qwenpaw.app.routers.providers.get_agent_for_request",
+            new_callable=AsyncMock,
+            return_value=mock_workspace,
+        ), patch(
+            "qwenpaw.app.routers.providers.load_agent_config",
+            return_value=mock_agent_config,
+        ) as mock_load, patch(
+            "qwenpaw.app.routers.providers.save_agent_config"
+        ) as mock_save, patch(
+            "qwenpaw.app.routers.providers.schedule_agent_reload"
+        ):
+            agent_put_body = FallbackModelsRequest(
+                scope="agent",
+                agent_id="test-agent",
+                fallback_models=[
+                    ModelSlotConfig(provider_id="openai", model="gpt-4o"),
+                    ModelSlotConfig(provider_id="openai", model="gpt-4o-mini"),
+                ],
+            )
+            agent_put_result = await set_fallback_models(
+                request, manager, agent_put_body
+            )
+            agent_get_result = await get_fallback_models(
+                request, manager, scope="agent", agent_id="test-agent"
+            )
+
+            assert agent_put_result.fallback_models == agent_get_result.fallback_models
+            assert len(agent_put_result.fallback_models) == 2
+            mock_save.assert_called_once()
+            assert mock_load.call_count == 2
+
+        # 3. PUT empty list -> GET -> source becomes none/global
+        with patch(
+            "qwenpaw.app.routers.providers.get_agent_for_request",
+            new_callable=AsyncMock,
+            return_value=mock_workspace,
+        ), patch(
+            "qwenpaw.app.routers.providers.load_agent_config",
+            return_value=mock_agent_config,
+        ), patch(
+            "qwenpaw.app.routers.providers.save_agent_config"
+        ), patch(
+            "qwenpaw.app.routers.providers.schedule_agent_reload"
+        ):
+            empty_put_body = FallbackModelsRequest(
+                scope="agent",
+                agent_id="test-agent",
+                fallback_models=[],
+            )
+            await set_fallback_models(request, manager, empty_put_body)
+            empty_get_result = await get_fallback_models(
+                request, manager, scope="agent", agent_id="test-agent"
+            )
+            assert empty_get_result.fallback_models == []
+
+        print("Fallback API self-check passed")
+
+
+    asyncio.run(main())

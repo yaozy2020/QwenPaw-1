@@ -20,6 +20,7 @@ import type {
   DiscoverExtendedResponse,
   FilterModelsRequest,
   FilterModelsResponse,
+  FallbackModelsResponse,
 } from "../types";
 
 function buildActiveModelQuery(params?: GetActiveModelsRequest): string {
@@ -204,4 +205,33 @@ export const providerApi = {
         providerId,
       )}/oauth/status?state=${encodeURIComponent(state)}`,
     ),
+
+  /* ---- Fallback Models ---- */
+
+  getFallbackModels: (scope: 'global' | 'agent', agentId?: string) => {
+    const params = new URLSearchParams();
+    params.set('scope', scope);
+    if (agentId) {
+      params.set('agent_id', agentId);
+    }
+    return request<FallbackModelsResponse>(`/models/fallback?${params.toString()}`);
+  },
+
+  saveFallbackModels: (
+    scope: 'global' | 'agent',
+    agentId: string | undefined,
+    fallbackModels: ModelSlotConfig[],
+  ) => {
+    const body: Record<string, unknown> = {
+      scope,
+      fallback_models: fallbackModels,
+    };
+    if (agentId) {
+      body.agent_id = agentId;
+    }
+    return request<FallbackModelsResponse>('/models/fallback', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  },
 };
