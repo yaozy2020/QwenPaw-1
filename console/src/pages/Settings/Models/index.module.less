@@ -2497,6 +2497,13 @@
     padding: 16px;
     padding-bottom: 56px;
     border-radius: 12px;
+    /* Workaround for HarmonyOS 3.0 / older WebView half-white rendering */
+    background: var(--ant-color-bg-container, #fff);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    overflow: hidden;
   }
 
   .cardName {
@@ -2506,6 +2513,13 @@
   .groupCardGlass {
     padding: 16px;
     border-radius: 12px;
+    /* Workaround for HarmonyOS 3.0 / older WebView half-white rendering */
+    background: var(--ant-color-bg-container, #fff);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    overflow: hidden;
   }
 
   .groupCardGlass,
