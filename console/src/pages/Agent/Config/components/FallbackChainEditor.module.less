@@ -1,0 +1,214 @@
+/* ---- Fallback Chain Editor ---- */
+
+.fallbackCard {
+  width: 100%;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.centerState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 0;
+}
+
+.stateText {
+  font-size: 14px;
+  color: var(--ant-color-text-tertiary, #999);
+}
+
+.emptyState {
+  text-align: center;
+  padding: 32px 0;
+  color: var(--ant-color-text-tertiary, #999);
+  font-size: 14px;
+}
+
+.fallbackList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fallbackItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--ant-color-border, #e0e0e0);
+  background-color: var(--ant-color-bg-container, #fff);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.fallbackItem:hover {
+  border-color: var(--ant-color-primary, #ff7f16);
+  box-shadow: 0 0 0 1px var(--ant-color-primary, #ff7f16);
+}
+
+.dragHandle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--ant-color-text-tertiary, #999);
+  cursor: grab;
+  border-radius: 4px;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.fallbackItemInfo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fallbackProvider {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ant-color-text, #333);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fallbackModel {
+  font-size: 12px;
+  color: var(--ant-color-text-secondary, #666);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sourceBadge {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.deleteBtn {
+  flex-shrink: 0;
+  color: var(--ant-color-text-tertiary, #999);
+}
+
+.deleteBtn:hover {
+  color: var(--ant-color-error, #ff4d4f) !important;
+}
+
+.fallbackActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ant-color-border, #e0e0e0);
+}
+
+.addSelect {
+  flex: 1;
+  min-width: 200px;
+}
+
+.addButton {
+  flex-shrink: 0;
+}
+
+/* ---- Mobile adaptation ---- */
+
+.mobileActionBtn {
+  font-size: 13px;
+  height: 28px;
+  padding: 0 10px;
+  color: var(--ant-color-text, #666);
+  background: transparent;
+  border: 1px solid var(--ant-color-border, #d9d9d9);
+  border-radius: 7px;
+}
+
+.mobileActionBtn:hover:not(:disabled) {
+  color: var(--ant-color-text, #333);
+  border-color: var(--ant-color-primary, #bfbfbf);
+}
+
+.mobileActionBtn:disabled {
+  color: var(--ant-color-text-quaternary, #d9d9d9);
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .fallbackCard {
+    margin-bottom: 12px;
+  }
+
+  .headerActions {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+  }
+
+  .fallbackList {
+    gap: 10px;
+  }
+
+  .fallbackItem {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    position: relative;
+  }
+
+  .fallbackItemInfo {
+    flex: 1 1 calc(100% - 80px);
+  }
+
+  .sourceBadge {
+    order: 3;
+    margin-left: auto;
+  }
+
+  .deleteBtn {
+    order: 4;
+    margin-left: auto;
+  }
+
+  .fallbackActions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .addSelect {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .addButton {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .dragHandle {
+    width: 32px;
+    height: 32px;
+  }
+
+  .deleteBtn {
+    padding: 0 8px;
+    height: 32px;
+    font-size: 13px;
+  }
+}

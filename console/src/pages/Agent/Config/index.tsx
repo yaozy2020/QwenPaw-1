@@ -7,6 +7,7 @@ import {
   LlmRetryCard,
   LlmRateLimiterCard,
   ToolExecutionLevelCard,
+  FallbackChainEditor,
 } from "./components";
 import { PageHeader } from "@/components/PageHeader";
 import {
@@ -14,6 +15,7 @@ import {
   MEMORY_MANAGER_BACKEND_MAPPINGS,
 } from "@/constants/backendMappings";
 import api from "@/api";
+import type { ProviderInfo } from "@/api/types";
 import styles from "./index.module.less";
 
 function AgentConfigPage() {
@@ -43,6 +45,8 @@ function AgentConfigPage() {
     Form.useWatch("memory_manager_backend", form) || "remelight";
 
   const [maxInputLength, setMaxInputLength] = useState(131072);
+  const [fallbackProviders, setFallbackProviders] = useState<ProviderInfo[]>([]);
+
   useEffect(() => {
     api
       .getActiveModels({ scope: "effective" })
@@ -61,6 +65,10 @@ function AgentConfigPage() {
         }
       })
       .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    void api.listProviders().then(setFallbackProviders).catch(() => {});
   }, []);
 
   const dynamicTabs = useMemo(() => {
@@ -168,6 +176,25 @@ function AgentConfigPage() {
       ),
     });
 
+    // Add Fallback Models tab
+    baseTabs.push({
+      key: "fallbackModels",
+      label: (
+        <span className={styles.tabLabel}>
+          {t("agentConfig.fallbackModelsTitle", "Fallback Models")}
+        </span>
+      ),
+      children: (
+        <div className={styles.tabContent}>
+          <FallbackChainEditor
+            scope="agent"
+            agentId={selectedAgent}
+            providers={fallbackProviders}
+          />
+        </div>
+      ),
+    });
+
     return baseTabs;
   }, [
     t,
@@ -184,6 +211,8 @@ function AgentConfigPage() {
     approvalLevel,
     setApprovalLevel,
     saving,
+    selectedAgent,
+    fallbackProviders,
   ]);
 
   useEffect(() => {

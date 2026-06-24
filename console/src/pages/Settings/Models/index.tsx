@@ -18,6 +18,7 @@ import {
   ProviderConfigModal,
   ModelManageModal,
 } from "./components";
+import { FallbackChainEditor } from "@/pages/Agent/Config/components";
 import { PageHeader } from "@/components/PageHeader";
 import { useTranslation } from "react-i18next";
 import type { ProviderInfo } from "../../../api/types/provider";
@@ -344,6 +345,20 @@ function ModelsPage() {
                     {t("models.addProvider")}
                   </Button>
                 </div>
+              </div>
+
+              {/* ---- Fallback Models ---- */}
+              <div className={styles.fallbackSection}>
+                <div className={styles.sectionHeaderRow}>
+                  <PageHeader
+                    current={t("models.fallbackTitle", "Fallback Models")}
+                    className={styles.providersPageHeader}
+                  />
+                </div>
+                <FallbackChainEditor
+                  scope="global"
+                  providers={providers}
+                />
               </div>
 
               {/* ---- Tab Navigation ---- */}
