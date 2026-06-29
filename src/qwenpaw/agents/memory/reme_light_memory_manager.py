@@ -485,10 +485,144 @@ class ReMeLightMemoryManager(BaseMemoryManager):
             logger.exception(f"Failed to tokenize query: {e} query={query}")
             query_final = query
 
-        return await self._reme.memory_search(
+        # Check reranker config
+        agent_config = load_agent_config(self.agent_id)
+        r_cfg = agent_config.running.reme_light_memory_config.reranker_config
+        if r_cfg.enabled and r_cfg.api_key:
+            limit = max(1, max_results * r_cfg.candidate_multiplier)
+        else:
+            limit = max(1, max_results)
+
+        response = await self._reme.memory_search(
             query=query_final,
-            max_results=max_results,
+            max_results=limit,
             min_score=min_score,
+        )
+
+        if r_cfg.enabled and r_cfg.api_key:
+            reranked = await self._rerank_search_results(
+                query_final,
+                response,
+                max_results,
+            )
+            if reranked is not None:
+                response = reranked
+
+        return response
+
+    async def _rerank_search_results(
+        self,
+        query: str,
+        response: ToolResponse,
+        final_limit: int,
+    ) -> ToolResponse | None:
+        """Re-rank memory search results via configured reranker.
+
+        Returns a new ``ToolResponse`` with top *final_limit* items, or
+        ``None`` if reranking is unavailable or fails (caller falls back).
+        """
+        if not response.content:
+            return None
+        text = response.content[0].get("text", "") if isinstance(
+            response.content[0], dict
+        ) else getattr(response.content[0], "text", "")
+        if not text:
+            return None
+
+        try:
+            results = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            return None
+
+        if not isinstance(results, list) or len(results) <= 1:
+            return None
+
+        # Build passages for reranking
+        passages: list[str] = []
+        valid_idx_map: list[int] = []
+        for i, r in enumerate(results):
+            snippet = r.get("snippet") or r.get("content") or ""
+            if isinstance(snippet, str) and snippet.strip():
+                passages.append(snippet.strip()[:512])
+                valid_idx_map.append(i)
+
+        if len(passages) <= 1:
+            return None
+
+        # Call reranker API via aiohttp (lazy import)
+        import aiohttp
+
+        agent_config = load_agent_config(self.agent_id)
+        cfg = agent_config.running.reme_light_memory_config.reranker_config
+        url = cfg.base_url.rstrip("/")
+        if not url.endswith("/rerank"):
+            url = url + "/rerank"
+        headers = {
+            "Authorization": f"Bearer {cfg.api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": cfg.model_name,
+            "query": query,
+            "documents": passages,
+            "return_documents": False,
+        }
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url,
+                    json=payload,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=30),
+                ) as resp:
+                    if resp.status != 200:
+                        logger.warning(
+                            "Reranker API HTTP %s: %s",
+                            resp.status,
+                            await resp.text(),
+                        )
+                        return None
+                    data = await resp.json()
+        except Exception as exc:
+            logger.warning("Reranker request failed: %s", exc)
+            return None
+
+        reranked = sorted(
+            data.get("results", []),
+            key=lambda x: x.get("relevance_score", 0),
+            reverse=True,
+        )
+
+        # Reconstruct result list from reranker order
+        reranked_results: list[dict] = []
+        seen: set[int] = set()
+        for item in reranked:
+            idx = item.get("index", -1)
+            if idx < 0 or idx >= len(valid_idx_map):
+                continue
+            orig_idx = valid_idx_map[idx]
+            if orig_idx in seen:
+                continue
+            seen.add(orig_idx)
+            reranked_results.append(results[orig_idx])
+            if len(reranked_results) >= final_limit:
+                break
+
+        # Append any remaining original results to fill quota
+        if len(reranked_results) < final_limit:
+            for i, r in enumerate(results):
+                if i not in seen:
+                    reranked_results.append(r)
+                    seen.add(i)
+                    if len(reranked_results) >= final_limit:
+                        break
+
+        new_text = json.dumps(reranked_results, ensure_ascii=False)
+        return ToolResponse(
+            content=[
+                TextBlock(type="text", text=new_text),
+            ],
         )
 
     async def summarize(self, messages: list[Msg], **_kwargs) -> str:
@@ -536,7 +670,6 @@ class ReMeLightMemoryManager(BaseMemoryManager):
         msgs: list[Msg] = (
             [messages] if isinstance(messages, Msg) else list(messages)
         )
-
         # Build query from the newest messages, preserving tail.
         query_parts: list[str] = []
         total = 0
