@@ -15,13 +15,7 @@ function modelOptionsForProvider(
   providerId?: string,
 ): ProviderOption[] {
   const provider = providers.find((item) => item.id === providerId);
-  if (!provider) return [];
-  return [...(provider.models ?? []), ...(provider.extra_models ?? [])].map(
-    (model) => ({
-      value: model.id,
-      label: model.name || model.id,
-    }),
-  );
+  return provider ? allModelOptions(provider) : [];
 }
 
 function allModelOptions(provider: ProviderInfo): ProviderOption[] {
