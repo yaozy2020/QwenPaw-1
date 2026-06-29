@@ -15,6 +15,9 @@ import {
 } from "../../../constants/backendMappings";
 import type { ToolExecutionLevel } from "./components/ToolExecutionLevelCard";
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  value != null && typeof value === "object" && !Array.isArray(value);
+
 export function useAgentConfig() {
   const { t } = useTranslation();
   const { message } = useAppMessage();
@@ -126,31 +129,25 @@ export function useAgentConfig() {
         llm_fallback_models?: AgentsLLMRoutingConfig["fallback"]["models"];
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const deepMergeConfig = <T,>(
         base: T | undefined | null,
         override: T | undefined | null,
       ): T | undefined => {
         if (!base) return override ?? undefined;
         if (!override) return base;
-        const result = { ...(base as any) };
-        for (const key of Object.keys(override as any)) {
-          const overrideVal = (override as any)[key];
-          const baseVal = (base as any)[key];
-          if (
-            overrideVal != null &&
-            typeof overrideVal === "object" &&
-            !Array.isArray(overrideVal) &&
-            baseVal != null &&
-            typeof baseVal === "object" &&
-            !Array.isArray(baseVal)
-          ) {
+        const baseRecord = base as unknown as Record<string, unknown>;
+        const overrideRecord = override as unknown as Record<string, unknown>;
+        const result = { ...baseRecord };
+        for (const key of Object.keys(overrideRecord)) {
+          const overrideVal = overrideRecord[key];
+          const baseVal = baseRecord[key];
+          if (isPlainObject(overrideVal) && isPlainObject(baseVal)) {
             result[key] = deepMergeConfig(baseVal, overrideVal);
           } else {
             result[key] = overrideVal;
           }
         }
-        return result as T;
+        return result as unknown as T;
       };
 
       const {
@@ -210,7 +207,7 @@ export function useAgentConfig() {
     } finally {
       setSaving(false);
     }
-  }, [form, t, selectedAgent, approvalLevel]);
+  }, [form, t, selectedAgent, approvalLevel, message]);
 
   const handleLanguageChange = useCallback(
     (value: string): void => {
@@ -250,7 +247,7 @@ export function useAgentConfig() {
         },
       });
     },
-    [language, t],
+    [language, t, message],
   );
 
   const handleTimezoneChange = useCallback(
@@ -271,7 +268,7 @@ export function useAgentConfig() {
         setSavingTimezone(false);
       }
     },
-    [timezone, t],
+    [timezone, t, message],
   );
 
   return {

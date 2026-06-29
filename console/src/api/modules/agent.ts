@@ -61,7 +61,10 @@ export const agentApi = {
       `/agents/${encodeURIComponent(agentId)}/config/agents/llm-routing`,
     ),
 
-  updateAgentLlmRouting: (config: AgentsLLMRoutingConfig, agentId = "default") =>
+  updateAgentLlmRouting: (
+    config: AgentsLLMRoutingConfig,
+    agentId = "default",
+  ) =>
     request<AgentsLLMRoutingConfig>(
       `/agents/${encodeURIComponent(agentId)}/config/agents/llm-routing`,
       {

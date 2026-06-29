@@ -34,7 +34,8 @@ function hasAvailableModels(provider: ProviderInfo): boolean {
 function isConfiguredProvider(provider: ProviderInfo): boolean {
   if (!hasAvailableModels(provider)) return false;
   if (provider.require_api_key === false) return Boolean(provider.base_url);
-  if (provider.is_custom || provider.is_local) return Boolean(provider.base_url);
+  if (provider.is_custom || provider.is_local)
+    return Boolean(provider.base_url);
   if (provider.require_api_key ?? true) return Boolean(provider.api_key);
   return true;
 }
@@ -43,12 +44,20 @@ export function LlmFallbackCard() {
   const { t } = useTranslation();
   const form = Form.useFormInstance();
   const fallbackEnabled = Form.useWatch("llm_fallback_enabled", form) ?? false;
-  const fallbackModels =
-    (Form.useWatch("llm_fallback_models", form) as ModelSlotConfig[]) ?? [];
+  const watchedFallbackModels = Form.useWatch("llm_fallback_models", form) as
+    | ModelSlotConfig[]
+    | undefined;
+  const fallbackModels = useMemo(
+    () => watchedFallbackModels ?? [],
+    [watchedFallbackModels],
+  );
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
 
   useEffect(() => {
-    api.listProviders().then(setProviders).catch(() => setProviders([]));
+    api
+      .listProviders()
+      .then(setProviders)
+      .catch(() => setProviders([]));
   }, []);
 
   const providerOptions = useMemo(() => {
@@ -60,7 +69,8 @@ export function LlmFallbackCard() {
     return providers
       .filter(
         (provider) =>
-          isConfiguredProvider(provider) || selectedProviderIds.has(provider.id),
+          isConfiguredProvider(provider) ||
+          selectedProviderIds.has(provider.id),
       )
       .map((provider) => ({
         value: provider.id,
@@ -107,7 +117,9 @@ export function LlmFallbackCard() {
                     <Select
                       disabled={!fallbackEnabled}
                       options={providerOptions}
-                      placeholder={t("agentConfig.llmFallbackProviderPlaceholder")}
+                      placeholder={t(
+                        "agentConfig.llmFallbackProviderPlaceholder",
+                      )}
                       onChange={(value) => {
                         const next = [...(fallbackModels ?? [])];
                         next[index] = {
@@ -158,7 +170,10 @@ export function LlmFallbackCard() {
                     >
                       {t("agentConfig.llmFallbackMoveDown")}
                     </Button>
-                    <Button disabled={!fallbackEnabled} onClick={() => remove(field.name)}>
+                    <Button
+                      disabled={!fallbackEnabled}
+                      onClick={() => remove(field.name)}
+                    >
                       {t("common.delete")}
                     </Button>
                   </div>
