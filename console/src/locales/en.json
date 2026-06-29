@@ -1471,6 +1471,7 @@
     "providersDescription": "Configure API keys and endpoints for each provider.",
     "llmTitle": "Models",
     "defaultLlm": "Default LLM",
+    "globalFallbackTitle": "Global Model Fallback",
     "notConfiguredYet": "Not configured",
     "llmDescription": "Set the global default LLM model from an authorized provider. You can choose a specific model for each Agent in the Chat page.",
     "configureProvider": "Configure {{name}}",

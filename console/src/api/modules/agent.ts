@@ -70,6 +70,15 @@ export const agentApi = {
       },
     ),
 
+  getGlobalAgentLlmRouting: () =>
+    request<AgentsLLMRoutingConfig>("/global-config/agents/llm-routing"),
+
+  updateGlobalAgentLlmRouting: (config: AgentsLLMRoutingConfig) =>
+    request<AgentsLLMRoutingConfig>("/global-config/agents/llm-routing", {
+      method: "PUT",
+      body: JSON.stringify(config),
+    }),
+
   getAgentLanguage: () => request<{ language: string }>("/workspace/language"),
 
   updateAgentLanguage: (language: string) =>
