@@ -175,6 +175,9 @@ export function LlmFallbackCard() {
           </div>
         )}
       </Form.List>
+      <div className={styles.llmFallbackHint}>
+        {t("agentConfig.llmFallbackReloadHint")}
+      </div>
     </Card>
   );
 }

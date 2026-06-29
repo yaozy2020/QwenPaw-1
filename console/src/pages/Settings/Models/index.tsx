@@ -577,6 +577,9 @@ function ModelsPage() {
                   current={t("models.globalFallbackTitle")}
                   className={styles.fallbackPageHeader}
                 />
+                <span className={styles.fallbackHint}>
+                  {t("models.globalFallbackHint")}
+                </span>
               </div>
               <Form form={fallbackForm} layout="vertical">
                 <LlmFallbackCard />
