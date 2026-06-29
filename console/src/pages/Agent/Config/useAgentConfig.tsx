@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Form, Modal } from "@agentscope-ai/design";
 import { useTranslation } from "react-i18next";
 import api from "../../../api";
-import type { AgentsRunningConfig } from "../../../api/types";
+import type {
+  AgentsLLMRoutingConfig,
+  AgentsRunningConfig,
+} from "../../../api/types";
 import { useAppMessage } from "../../../hooks/useAppMessage";
 import { useAgentStore } from "../../../stores/agentStore";
 import {
@@ -27,13 +30,15 @@ export function useAgentConfig() {
   const [approvalLevel, setApprovalLevel] =
     useState<ToolExecutionLevel>("AUTO");
   const originalConfigRef = useRef<AgentsRunningConfig | null>(null);
+  const originalLlmRoutingRef = useRef<AgentsLLMRoutingConfig | null>(null);
 
   const fetchConfig = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [config, langResp, tzResp] = await Promise.all([
+      const [config, routingConfig, langResp, tzResp] = await Promise.all([
         api.getAgentRunningConfig(),
+        api.getAgentLlmRouting(selectedAgent),
         api.getAgentLanguage(),
         api.getUserTimezone(),
       ]);
@@ -82,10 +87,13 @@ export function useAgentConfig() {
           enabled: true,
           timeout_seconds: 30.0,
         },
+        llm_fallback_enabled: routingConfig.fallback?.enabled ?? false,
+        llm_fallback_models: routingConfig.fallback?.models ?? [],
       });
 
       // Store original config for complete save
       originalConfigRef.current = config;
+      originalLlmRoutingRef.current = routingConfig;
 
       setLanguage(langResp.language);
       setTimezone(tzResp.timezone || "UTC");
@@ -112,7 +120,11 @@ export function useAgentConfig() {
       // would overwrite the entire nested object with only the rendered
       // fields, dropping anything inside a collapsed panel.
       const original = originalConfigRef.current!;
-      const formValues = values as AgentsRunningConfig;
+      const originalRouting = originalLlmRoutingRef.current!;
+      const formValues = values as AgentsRunningConfig & {
+        llm_fallback_enabled?: boolean;
+        llm_fallback_models?: AgentsLLMRoutingConfig["fallback"]["models"];
+      };
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const deepMergeConfig = <T,>(
@@ -141,9 +153,15 @@ export function useAgentConfig() {
         return result as T;
       };
 
+      const {
+        llm_fallback_enabled: llmFallbackEnabled,
+        llm_fallback_models: llmFallbackModels,
+        ...runningFormValues
+      } = formValues;
+
       const configToSave: AgentsRunningConfig = {
         ...original,
-        ...formValues,
+        ...runningFormValues,
         // Deep-merge nested config sections to preserve collapsed fields
         reme_light_memory_config: deepMergeConfig(
           original.reme_light_memory_config,
@@ -164,10 +182,25 @@ export function useAgentConfig() {
         approval_level: approvalLevel,
       };
 
-      await api.updateAgentRunningConfig(configToSave);
+      const routingToSave: AgentsLLMRoutingConfig = {
+        ...originalRouting,
+        fallback: {
+          ...(originalRouting.fallback ?? { enabled: false, models: [] }),
+          enabled: Boolean(llmFallbackEnabled),
+          models: (llmFallbackModels ?? []).filter(
+            (slot) => slot.provider_id && slot.model,
+          ),
+        },
+      };
+
+      await Promise.all([
+        api.updateAgentRunningConfig(configToSave),
+        api.updateAgentLlmRouting(routingToSave, selectedAgent),
+      ]);
 
       // Update original config after successful save
       originalConfigRef.current = configToSave;
+      originalLlmRoutingRef.current = routingToSave;
       message.success(t("agentConfig.saveSuccess"));
     } catch (err) {
       if (err instanceof Error && "errorFields" in err) return;
