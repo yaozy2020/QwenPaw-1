@@ -395,7 +395,9 @@ def _substitute_video_blocks(
             continue
         for i, blk in enumerate(msg.content):
             btype = (
-                blk.get("type") if isinstance(blk, dict) else getattr(blk, "type", None)
+                blk.get("type")
+                if isinstance(blk, dict)
+                else getattr(blk, "type", None)
             )
             is_video = False
             if btype == "video":
@@ -413,7 +415,9 @@ def _substitute_video_blocks(
 
             if is_video:
                 ph = f"__QWENPAW_VID_{id(blk)}__"
-                video_subs[ph] = blk if isinstance(blk, dict) else blk.model_dump()
+                video_subs[ph] = (
+                    blk if isinstance(blk, dict) else blk.model_dump()
+                )
                 msg.content[i] = TextBlock(type="text", text=ph)
     return video_subs
 
@@ -428,10 +432,14 @@ def _restore_video_blocks(
             continue
         for i, blk in enumerate(msg.content):
             btype = (
-                blk.get("type") if isinstance(blk, dict) else getattr(blk, "type", None)
+                blk.get("type")
+                if isinstance(blk, dict)
+                else getattr(blk, "type", None)
             )
             text = (
-                blk.get("text") if isinstance(blk, dict) else getattr(blk, "text", None)
+                blk.get("text")
+                if isinstance(blk, dict)
+                else getattr(blk, "text", None)
             )
             if btype == "text" and text in video_subs:
                 msg.content[i] = video_subs[text]
@@ -466,17 +474,27 @@ def _promote_tool_result_videos(
                 )
                 for item in output
                 if (
-                    (item if isinstance(item, dict) else _block_to_dict(item)).get(
-                        "type"
+                    (
+                        item
+                        if isinstance(item, dict)
+                        else _block_to_dict(item)
+                    ).get(
+                        "type",
                     )
                     in ("video", "data")
                     and (
-                        (item if isinstance(item, dict) else _block_to_dict(item))
+                        (
+                            item
+                            if isinstance(item, dict)
+                            else _block_to_dict(item)
+                        )
                         .get("source", {})
                         .get("media_type", "")
                         .startswith("video/")
                         or (
-                            item if isinstance(item, dict) else _block_to_dict(item)
+                            item
+                            if isinstance(item, dict)
+                            else _block_to_dict(item)
                         ).get("type")
                         == "video"
                     )
@@ -645,13 +663,15 @@ def _fixup_media_list(items: list) -> None:
                 ("http://", "https://", "data:"),
             ) and not os.path.exists(url):
                 logger.warning(
-                    "Media file no longer exists, " "replacing with placeholder: %s",
+                    "Media file no longer exists, "
+                    "replacing with placeholder: %s",
                     url,
                 )
                 items[i] = TextBlock(
                     type="text",
                     text=(
-                        f"[{btype.title()} unavailable" f" — file deleted from disk]"
+                        f"[{btype.title()} unavailable"
+                        f" — file deleted from disk]"
                     ),
                 )
         elif btype == "data":
@@ -683,7 +703,9 @@ def _fixup_media_list(items: list) -> None:
         elif btype == "file":
             if isinstance(block, dict):
                 source = block.get("source") or {}
-                file_url = source.get("url", "") if isinstance(source, dict) else ""
+                file_url = (
+                    source.get("url", "") if isinstance(source, dict) else ""
+                )
                 fname_hint = block.get("filename") or block.get("name")
             else:
                 source = getattr(block, "source", None)
@@ -780,7 +802,8 @@ def _create_file_block_support_formatter(
                     return {
                         "type": "text",
                         "text": (
-                            f"[{main_type.title()} omitted — " f"already shown above]"
+                            f"[{main_type.title()} omitted — "
+                            f"already shown above]"
                         ),
                     }
                 seen.add(key)
@@ -848,7 +871,9 @@ def _create_file_block_support_formatter(
             # this dance — Anthropic now handles video via our
             # ``_format_anthropic_data_block`` override, Gemini accepts
             # video natively.
-            _needs_video = not _is_gemini_formatter and not (is_anthropic_formatter)
+            _needs_video = not _is_gemini_formatter and not (
+                is_anthropic_formatter
+            )
             video_subs: dict[str, dict] = {}
             if _needs_video:
                 video_subs = _substitute_video_blocks(normalized_msgs)
@@ -889,7 +914,9 @@ def _create_file_block_support_formatter(
                 )
             ):
                 aligned_reasoning = []
-                for m in (msg for msg in normalized_msgs if msg.role == "assistant"):
+                for m in (
+                    msg for msg in normalized_msgs if msg.role == "assistant"
+                ):
                     types = (
                         [_battr(b, "type") for b in m.content]
                         if isinstance(m.content, list)
@@ -930,7 +957,9 @@ def _create_file_block_support_formatter(
                         [reasoning_contents.get(id(m))] * wire_count,
                     )
 
-                out_assistant = [m for m in messages if m.get("role") == "assistant"]
+                out_assistant = [
+                    m for m in messages if m.get("role") == "assistant"
+                ]
 
                 if len(aligned_reasoning) != len(out_assistant):
                     logger.warning(
@@ -944,7 +973,9 @@ def _create_file_block_support_formatter(
                         len(out_assistant),
                     )
                     for _i, m in enumerate(
-                        msg for msg in normalized_msgs if msg.role == "assistant"
+                        msg
+                        for msg in normalized_msgs
+                        if msg.role == "assistant"
                     ):
                         types = (
                             [_battr(b, "type") for b in m.content]
@@ -1139,8 +1170,9 @@ def create_model_and_formatter(
         try:
             agent_config = load_agent_config(agent_id)
             model_slot = agent_config.active_model
+            ctx_config = agent_config.running.light_context_config
             compact_threshold = (
-                agent_config.running.light_context_config.context_compact_config.compact_threshold_ratio
+                ctx_config.context_compact_config.compact_threshold_ratio
             )
             retry_config = RetryConfig(
                 enabled=agent_config.running.llm_retry_enabled,

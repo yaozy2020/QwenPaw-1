@@ -47,7 +47,11 @@ class FakeChatModel(ChatModelBase):
 
 
 class FakeProvider:
-    def __init__(self, provider_id: str, formatter_cls=PrimaryFormatter) -> None:
+    def __init__(
+        self,
+        provider_id: str,
+        formatter_cls=PrimaryFormatter,
+    ) -> None:
         self.provider_id = provider_id
         self.formatter_cls = formatter_cls
         self.created: list[str] = []
@@ -82,7 +86,8 @@ def _agent_config(
     compact_threshold: float = 0.8,
 ):
     running = AgentsRunningConfig()
-    running.light_context_config.context_compact_config.compact_threshold_ratio = (
+    ctx_config = running.light_context_config
+    ctx_config.context_compact_config.compact_threshold_ratio = (
         compact_threshold
     )
     return SimpleNamespace(
@@ -158,7 +163,8 @@ def test_create_model_enabled_fallback_returns_fallback_wrapper() -> None:
         "backup:standby",
     ]
     assert all(
-        isinstance(candidate.model, RetryChatModel) for candidate in model.candidates
+        isinstance(candidate.model, RetryChatModel)
+        for candidate in model.candidates
     )
     assert manager.providers["primary"].created == ["main"]
     assert manager.providers["backup"].created == ["standby"]
