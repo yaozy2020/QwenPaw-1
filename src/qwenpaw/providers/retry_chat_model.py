@@ -150,9 +150,7 @@ def _get_httpx_retryable() -> tuple[type[Exception], ...]:
 def _is_retryable(exc: Exception) -> bool:
     """Return *True* if *exc* should trigger a retry."""
     retryable = (
-        _get_openai_retryable()
-        + _get_anthropic_retryable()
-        + _get_httpx_retryable()
+        _get_openai_retryable() + _get_anthropic_retryable() + _get_httpx_retryable()
     )
     if retryable and isinstance(exc, retryable):
         return True
@@ -315,8 +313,7 @@ class RetryChatModel(ChatModelBase):
         super().__init__(
             credential=getattr(inner, "credential", None),
             model=getattr(inner, "model", "unknown"),
-            parameters=getattr(inner, "parameters", None)
-            or ChatModelBase.Parameters(),
+            parameters=getattr(inner, "parameters", None) or ChatModelBase.Parameters(),
             stream=getattr(inner, "stream", True),
             context_size=getattr(inner, "context_size", 32768),
         )
@@ -436,9 +433,7 @@ class RetryChatModel(ChatModelBase):
             jitter_range=self._rate_limit_config.jitter_range,
         )
 
-        retries = (
-            self._retry_config.max_retries if self._retry_config.enabled else 0
-        )
+        retries = self._retry_config.max_retries if self._retry_config.enabled else 0
         attempts = retries + 1
         last_exc: Exception | None = None
 
@@ -517,8 +512,7 @@ class RetryChatModel(ChatModelBase):
 
                 delay = _compute_backoff(attempt, self._retry_config)
                 logger.warning(
-                    "LLM call failed (attempt %d/%d): %s. "
-                    "Retrying in %.1fs ...",
+                    "LLM call failed (attempt %d/%d): %s. " "Retrying in %.1fs ...",
                     attempt,
                     attempts,
                     _safe_error_summary(exc),
@@ -561,15 +555,55 @@ class RetryChatModel(ChatModelBase):
                 yield chunk
             return  # stream completed without error
         except Exception as failed_exc:
+            if _is_missing_reasoning_content_error(
+                failed_exc
+            ) and _inject_reasoning_content(call_args, call_kwargs):
+                get_capability_cache().learn(
+                    self.model_key,
+                    "needs_reasoning_content",
+                    True,
+                )
+                logger.warning(
+                    "Thinking-mode stream requires reasoning_content on "
+                    "every assistant message. Injecting empty values and "
+                    "retrying (learned for future calls).",
+                )
+                try:
+                    retry_acquired_at = await asyncio.wait_for(
+                        limiter.acquire(),
+                        timeout=self._rate_limit_config.acquire_timeout,
+                    )
+                except asyncio.TimeoutError as exc:
+                    raise _AcquireTimeoutError(
+                        operation="LLM execution (stream reasoning retry)",
+                        retry_after=int(
+                            self._rate_limit_config.acquire_timeout,
+                        ),
+                        details={
+                            "reason": "Timed out waiting for execution slot",
+                        },
+                    ) from exc
+
+                retry_result = await self._inner(*call_args, **call_kwargs)
+                if isinstance(retry_result, AsyncGenerator):
+                    async for chunk in self._consume_stream_with_slot(
+                        retry_result,
+                        limiter,
+                        retry_acquired_at,
+                    ):
+                        yield chunk
+                    return
+
+                limiter.release()
+                yield retry_result
+                return
+
             if _is_retryable(failed_exc) and _is_rate_limit(failed_exc):
                 await limiter.report_rate_limit(
                     _extract_retry_after(failed_exc),
                 )
 
-            if (
-                not _is_retryable(failed_exc)
-                or current_attempt >= max_attempts
-            ):
+            if not _is_retryable(failed_exc) or current_attempt >= max_attempts:
                 raise failed_exc
 
             delay = _compute_backoff(current_attempt, self._retry_config)
@@ -624,10 +658,7 @@ class RetryChatModel(ChatModelBase):
                             await limiter.report_rate_limit(
                                 _extract_retry_after(retry_failed),
                             )
-                        if (
-                            not _is_retryable(retry_failed)
-                            or attempt >= max_attempts
-                        ):
+                        if not _is_retryable(retry_failed) or attempt >= max_attempts:
                             raise retry_failed
                         retry_delay = _compute_backoff(
                             attempt,
