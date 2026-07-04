@@ -24,6 +24,7 @@ import { useAppMessage } from "@/hooks/useAppMessage";
 import api from "@/api";
 import type { ProviderInfo } from "../../../api/types/provider";
 import type { AgentsLLMRoutingConfig } from "../../../api/types";
+import { mergeFallbackRoutingConfig } from "./fallbackRouting";
 import {
   countConfiguredProviders,
   getIsConfigured,
@@ -46,6 +47,8 @@ function ModelsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [fallbackForm] = Form.useForm();
   const [fallbackSaving, setFallbackSaving] = useState(false);
+  const [globalRoutingConfig, setGlobalRoutingConfig] =
+    useState<AgentsLLMRoutingConfig | null>(null);
 
   // Shared Modal state — only one instance each instead of N per card
   const [configModalProvider, setConfigModalProvider] =
@@ -89,34 +92,37 @@ function ModelsPage() {
     api
       .getGlobalAgentLlmRouting()
       .then((config) => {
+        setGlobalRoutingConfig(config);
         fallbackForm.setFieldsValue({
           llm_fallback_enabled: config.fallback?.enabled ?? false,
           llm_fallback_models: config.fallback?.models ?? [],
         });
       })
-      .catch(() => {});
-  }, [fallbackForm]);
+      .catch((err) => {
+        const errMsg = err instanceof Error ? err.message : t("common.error");
+        message.error(errMsg);
+      });
+  }, [fallbackForm, message, t]);
 
   const handleSaveFallback = useCallback(async () => {
     const values = await fallbackForm.validateFields();
     setFallbackSaving(true);
     try {
-      const config: AgentsLLMRoutingConfig = {
-        enabled: false,
-        mode: "local_first",
-        local: { provider_id: "", model: "" },
-        cloud: null,
-        fallback: {
-          enabled: values.llm_fallback_enabled,
-          models: values.llm_fallback_models,
-        },
-      };
+      const baseConfig = globalRoutingConfig ?? (await api.getGlobalAgentLlmRouting());
+      const config = mergeFallbackRoutingConfig(baseConfig, {
+        enabled: values.llm_fallback_enabled,
+        models: values.llm_fallback_models,
+      });
       await api.updateGlobalAgentLlmRouting(config);
+      setGlobalRoutingConfig(config);
       message.success(t("common.saved"));
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : t("common.error");
+      message.error(errMsg);
     } finally {
       setFallbackSaving(false);
     }
-  }, [fallbackForm, message, t]);
+  }, [fallbackForm, globalRoutingConfig, message, t]);
 
   // Keep modal provider states in sync with the latest providers data
   useEffect(() => {
