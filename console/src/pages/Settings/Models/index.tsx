@@ -108,7 +108,8 @@ function ModelsPage() {
     const values = await fallbackForm.validateFields();
     setFallbackSaving(true);
     try {
-      const baseConfig = globalRoutingConfig ?? (await api.getGlobalAgentLlmRouting());
+      const baseConfig =
+        globalRoutingConfig ?? (await api.getGlobalAgentLlmRouting());
       const config = mergeFallbackRoutingConfig(baseConfig, {
         enabled: values.llm_fallback_enabled,
         models: values.llm_fallback_models,

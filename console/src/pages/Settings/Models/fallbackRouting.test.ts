@@ -14,9 +14,7 @@ describe("mergeFallbackRoutingConfig", () => {
 
     const merged = mergeFallbackRoutingConfig(original, {
       enabled: true,
-      models: [
-        { provider_id: "fallback-provider", model: "fallback-model" },
-      ],
+      models: [{ provider_id: "fallback-provider", model: "fallback-model" }],
     });
 
     expect(merged).toEqual({
@@ -26,9 +24,7 @@ describe("mergeFallbackRoutingConfig", () => {
       cloud: { provider_id: "cloud-provider", model: "cloud-model" },
       fallback: {
         enabled: true,
-        models: [
-          { provider_id: "fallback-provider", model: "fallback-model" },
-        ],
+        models: [{ provider_id: "fallback-provider", model: "fallback-model" }],
       },
     });
   });
